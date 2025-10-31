@@ -320,3 +320,4 @@ if st.button(ui_texts["button"]) and city_input:
 st.markdown("---")
 st.markdown(f"<div style='text-align: center; color: #888; font-size: 0.9rem;'>{ui_texts['footer']}</div>", unsafe_allow_html=True)
 
+
