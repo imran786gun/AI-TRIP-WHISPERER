@@ -6,7 +6,6 @@ import requests
 import groq
 import wikipedia
 import string
-import re # Using regular expressions for a smarter parser
 from urllib.parse import quote_plus
 from dotenv import load_dotenv
 from datetime import datetime
@@ -28,7 +27,7 @@ except Exception as e:
 # Get the Weather API key
 WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
 
-# --- TRANSLATIONS DICTIONARY ---
+# --- NEW: TRANSLATIONS DICTIONARY ---
 translations = {
     "en": {
         "title": "Trip Whisperer: Your AI Travel Companion ✈️",
@@ -43,8 +42,7 @@ translations = {
         "success": "Your personalized travel guide is ready! Click any item to explore it on Google Maps.",
         "lang_name": "English",
         "lang_select": "Select Language",
-        "footer": "Created by Sheikh Imran © 2025. All rights reserved.",
-        "download_button": "Download Guide as .txt"
+        "footer": "Created by Sheikh Imran © 2025. All rights reserved."
     },
     "es": {
         "title": "Susurrador de Viajes: Tu Compañero de IA ✈️",
@@ -59,8 +57,7 @@ translations = {
         "success": "¡Tu guía de viaje personalizada está lista! Haz clic en cualquier elemento para explorarlo en Google Maps.",
         "lang_name": "Español",
         "lang_select": "Seleccionar Idioma",
-        "footer": "Creado por Sheikh Imran © 2025. Todos los derechos reservados.",
-        "download_button": "Descargar Guía como .txt"
+        "footer": "Creado por Sheikh Imran © 2025. Todos los derechos reservados."
     },
     "hi": {
         "title": "ट्रिप व्हिस्परर: आपका AI यात्रा साथी ✈️",
@@ -75,8 +72,7 @@ translations = {
         "success": "आपकी व्यक्तिगत यात्रा गाइड तैयार है! Google मानचित्र पर इसका पता लगाने के लिए किसी भी आइटम पर क्लिक करें।",
         "lang_name": "हिंदी",
         "lang_select": "भाषा चुनें",
-        "footer": "शेख इमरान द्वारा निर्मित © 2025. सर्वाधिकार सुरक्षित।",
-        "download_button": "गाइड को .txt के रूप में डाउनलोड करें"
+        "footer": "शेख इमरान द्वारा निर्मित © 2025. सर्वाधिकार सुरक्षित।"
     },
     "fr": {
         "title": "Murmure de Voyage : Votre Compagnon IA ✈️",
@@ -91,82 +87,12 @@ translations = {
         "success": "Votre guide de voyage personnalisé est prêt ! Cliquez sur un élément pour l'explorer sur Google Maps.",
         "lang_name": "Français",
         "lang_select": "Choisir la langue",
-        "footer": "Créé par Sheikh Imran © 2025. Tous droits réservés.",
-        "download_button": "Télécharger le guide en .txt"
-    },
-    "te": {
-        "title": "ట్రిప్ విస్పరర్: మీ AI ప్రయాణ సహచరుడు ✈️",
-        "placeholder": "ఉదా., పారిస్, టోక్యో, న్యూయార్క్",
-        "button": "గైడ్ రూపొందించు",
-        "spinner": "{city_name} కోసం ప్రయాణ గైడ్‌ను సిద్ధం చేస్తోంది... ✨",
-        "weather_header": "{city_name}లో ప్రస్తుత వాతావరణం:",
-        "flights_button": "{city_name} కోసం విమానాలను శోధించండి",
-        "summary_header": "{city_name} యొక్క సంగ్రహావలోకనం",
-        "summary_error": "'{city_name}' కోసం వికీపీడియా సారాంశం కనుగొనబడలేదు (భాష: {lang_code}).",
-        "guide_error": "గైడ్ రూపొందించబడలేదు. AI మోడల్ లోపం: {e}",
-        "success": "మీ వ్యక్తిగత ప్రయాణ గైడ్ సిద్ధంగా ఉంది! Google మ్యాప్స్‌లో అన్వేషించడానికి ఏదైనా ఐటెమ్‌పై క్లిక్ చేయండి.",
-        "lang_name": "తెలుగు",
-        "lang_select": "భాషను ఎంచుకోండి",
-        "footer": "షేక్ ఇమ్రాన్ ద్వారా సృష్టించబడింది © 2025. అన్ని హక్కులు ప్రత్యేకించబడ్డాయి.",
-        "download_button": "గైడ్‌ను .txtగా డౌన్‌లోడ్ చేయండి"
-    },
-    "kn": {
-        "title": "ಟ್ರಿಪ್ ವಿಸ್ಪರರ್: ನಿಮ್ಮ AI ಪ್ರವಾಸ ಸಂಗಾತಿ ✈️",
-        "placeholder": "ಉದಾ., ಪ್ಯಾರಿಸ್, ಟೋಕಿಯೋ, ನ್ಯೂಯಾರ್ಕ್",
-        "button": "ಮಾರ್ಗದರ್ಶಿ ರಚಿಸಿ",
-        "spinner": "{city_name} ಗಾಗಿ ಪ್ರವಾಸ ಮಾರ್ಗದರ್ಶಿಯನ್ನು ರಚಿಸಲಾಗುತ್ತಿದೆ... ✨",
-        "weather_header": "{city_name} ನಲ್ಲಿ ಪ್ರಸ್ತುತ ಹವಾಮಾನ:",
-        "flights_button": "{city_name} ಗಾಗಿ ವಿಮಾನಗಳನ್ನು ಹುಡುಕಿ",
-        "summary_header": "{city_name} ದ ಒಂದು ನೋಟ",
-        "summary_error": "'{city_name}' ಗಾಗಿ ವಿಕಿಪೀಡಿಯಾ ಸಾರಾಂಶ ಕಂಡುಬಂದಿಲ್ಲ (ಭಾಷೆ: {lang_code}).",
-        "guide_error": "ಮಾರ್ಗದರ್ಶಿ ರಚಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. AI ಮಾದರಿ ದೋಷ: {e}",
-        "success": "ನಿಮ್ಮ ವೈಯಕ್ತಿಕ ಪ್ರವಾಸ ಮಾರ್ಗದರ್ಶಿ ಸಿದ್ಧವಾಗಿದೆ! Google ನಕ್ಷೆಗಳಲ್ಲಿ ಅನ್ವೇಷಿಸಲು ಯಾವುದೇ ಐಟಂ ಮೇಲೆ ಕ್ಲಿಕ್ ಮಾಡಿ.",
-        "lang_name": "ಕನ್ನಡ",
-        "lang_select": "ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ",
-        "footer": "ಶೇಕ್ ಇಮ್ರಾನ್ ಅವರಿಂದ ರಚಿಸಲಾಗಿದೆ © 2025. ಎಲ್ಲಾ ಹಕ್ಕುಗಳನ್ನು ಕಾಯ್ದಿರಿಸಲಾಗಿದೆ.",
-        "download_button": "ಮಾರ್ಗದರ್ಶಿಯನ್ನು .txt ಆಗಿ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ"
-    },
-    "ur": {
-        "title": "ٹرپ وِسپرر: آپ کا AI سفری ساتھی ✈️",
-        "placeholder": "مثلاً، پیرس، ٹوکیو، نیویارک",
-        "button": "گائیڈ بنائیں",
-        "spinner": "{city_name} کے لیے ٹریول گائیڈ تیار کی جا رہی ہے... ✨",
-        "weather_header": "{city_name} میں موجودہ موسم:",
-        "flights_button": "{city_name} کے لیے پروازیں تلاش کریں",
-        "summary_header": "{city_name} کی ایک جھلک",
-        "summary_error": "'{city_name}' کے لیے ویکیپیڈیا کا خلاصہ نہیں مل سکا (زبان: {lang_code})۔",
-        "guide_error": "گائیڈ تیار نہیں ہو سکا۔ AI ماڈل کی خرابی: {e}",
-        "success": "آپ کا ذاتی ٹریول گائیڈ تیار ہے! Google Maps پر اسے دریافت کرنے کے لیے کسی بھی آئٹم پر کلک کریں۔",
-        "lang_name": "اردو",
-        "lang_select": "زبان منتخب کریں۔",
-        "footer": "شیخ عمران کا بنایا ہوا © 2025۔ جملہ حقوق محفوظ ہیں۔",
-        "download_button": "گائیڈ کو .txt کے بطور ڈاؤن لوڈ کریں۔"
+        "footer": "Créé par Sheikh Imran © 2025. Tous droits réservés."
     }
 }
 
 
 # --- HELPER FUNCTIONS ---
-
-# NEW: Added the Wikipedia image function back
-def get_image_url(search_term, lang_code="en"):
-    """
-    Fetches the main image URL from a Wikipedia page.
-    This will find landmarks, but likely not food items.
-    """
-    placeholder_url = "https://placehold.co/600x400/161B22/58A6FF?text=Image+Not+Found"
-    try:
-        wikipedia.set_lang(lang_code)
-        # Use auto_suggest to find the best match (e.g., "Taj Mahal" from "taj mahal")
-        page = wikipedia.page(search_term, auto_suggest=True)
-        wikipedia.set_lang("en") # Reset language
-        
-        # Return the first image, or the placeholder if none found
-        return page.images[0] if page.images else placeholder_url
-            
-    except Exception as e:
-        print(f"Error getting Wikipedia image for '{search_term}': {e}") 
-        wikipedia.set_lang("en") # Reset language on error
-        return placeholder_url
 
 def get_weather_info(city_name, api_key):
     """Fetches real-time weather data from OpenWeatherMap API."""
@@ -201,6 +127,7 @@ def generate_flight_search_link(city_name):
     encoded_query = quote_plus(query)
     return f"https://www.google.com/search?q={encoded_query}"
 
+# UPDATED: Now supports different languages
 def get_city_summary(city_name, lang_code, text_dict):
     """Fetches a concise summary of a city from Wikipedia in the specified language."""
     try:
@@ -212,6 +139,7 @@ def get_city_summary(city_name, lang_code, text_dict):
         wikipedia.set_lang("en") 
         return text_dict["summary_error"].format(city_name=city_name, lang_code=lang_code)
 
+# UPDATED: New prompt for 5 items, new categories, and language support
 def generate_travel_guide(city_name, lang_code, text_dict):
     """Uses Groq to generate a structured travel guide in the specified language."""
     
@@ -221,14 +149,12 @@ def generate_travel_guide(city_name, lang_code, text_dict):
             lang_name = texts["lang_name"]
             break
 
-    # NEW: Simplified prompt to only ask for Name and Description
     prompt = f"""
     Create a concise and exciting travel guide for "{city_name}".
     You MUST respond in this language: {lang_name} (language code: {lang_code}).
     
     You MUST provide two pieces of information for each item, separated by a pipe |.
-    STRICTLY follow the format: 1. [Name] | [Description]
-    Do not add any other text before or after the numbered lists.
+    The format MUST be: [Name in Local Language] | [A brief, 3-sentence description in {lang_name}]
 
     Example (if user requested 'Paris' and language 'en'):
     1. Eiffel Tower | A famous 19th-century iron lattice tower. It is one of the most recognizable structures in the world. Visitors can ride an elevator to the top for breathtaking views of the city.
@@ -265,69 +191,38 @@ def generate_travel_guide(city_name, lang_code, text_dict):
     except Exception as e:
         return text_dict["guide_error"].format(e=e)
 
-# NEW: Simplified parser for the new prompt
+# UPDATED: Parser now handles the new [Name] | [Description] format
 def parse_guide_to_dict(guide_text):
     """Parses the raw text output from the AI into a structured dictionary."""
     guide_dict = {}
-    sections = re.split(r'###\s*(.+)', guide_text)[1:]
-    
-    if not sections:
-        print("Parser Error: No '###' sections found in AI response.")
-        return {} 
-
-    for i in range(0, len(sections), 2):
-        if i + 1 < len(sections):
-            title = sections[i].strip()
-            content = sections[i+1].strip()
-            items = []
-            
-            item_lines = re.findall(r"^\s*\d+\.\s*(.+)", content, re.MULTILINE)
-            
-            if not item_lines:
-                 print(f"Parser Error: No numbered items found for section '{title}'.")
-                 
-            for item_line in item_lines:
+    sections = guide_text.split('### ')[1:]
+    for section in sections:
+        lines = section.strip().split('\n')
+        title = lines[0].strip()
+        items = []
+        for item_line in lines[1:]:
+            if '. ' in item_line:
+                full_item = item_line.split('. ', 1)[1].strip()
                 name, description = "", ""
                 
-                if '|' in item_line:
-                    parts = item_line.split('|', 1) # Split into max 2 parts
+                if '|' in full_item:
+                    parts = full_item.split('|', 1) # Split into max 2 parts
                     name = parts[0].strip()
                     if len(parts) > 1:
                         description = parts[1].strip()
                 else:
-                    name = item_line.strip()
-                    description = "..." # Add a placeholder if AI forgets
+                    name = full_item
                 
-                if name:
-                    items.append({"name": name, "description": description})
-            
-            if items:
-                guide_dict[title] = items
-    
-    if not guide_dict:
-         print(f"Parser Error: Final dictionary is empty. AI response was:\n{guide_text}")
-         
+                items.append({"name": name, "description": description})
+        guide_dict[title] = items
     return guide_dict
 
-def format_guide_for_download(guide_dict, city_name, lang_name):
-    """Formats the guide dictionary into a clean string for .txt download."""
-    download_text = f"Your Travel Guide for {city_name}\n"
-    download_text += f"(Language: {lang_name})\n"
-    download_text += "="*40 + "\n\n"
-    
-    for category, items in guide_dict.items():
-        download_text += f"### {category}\n\n"
-        for i, item in enumerate(items, 1):
-            download_text += f"{i}. {item['name']}\n"
-            download_text += f"   {item['description']}\n\n"
-        download_text += "\n"
-    
-    return download_text
 
 def generate_google_maps_link(item, city):
     """Generates a safe, encoded Google Maps link."""
     query = f"{item}, {city}"
     encoded_query = quote_plus(query)
+    # FIX: Corrected the URL from 'httpss.' to 'https://'
     return f"https://www.google.com/maps/search/?api=1&query={encoded_query}"
 
 # --- STREAMLIT UI ---
@@ -355,6 +250,7 @@ st.markdown("""
 
 # --- Main Application Flow ---
 
+# NEW: Language selection box
 language_options = {texts["lang_name"]: code for code, texts in translations.items()}
 selected_language_name = st.selectbox(
     label=translations["en"]["lang_select"], # Label is always in English
@@ -363,6 +259,7 @@ selected_language_name = st.selectbox(
 )
 selected_lang_code = language_options[selected_language_name]
 
+# NEW: Get the correct UI text from the dictionary
 ui_texts = translations[selected_lang_code]
 
 st.title(ui_texts["title"])
@@ -388,60 +285,38 @@ if st.button(ui_texts["button"]) and city_input:
         st.markdown(f"<a href='{flight_link}' target='_blank' style='display:inline-block; margin-top:10px; padding:8px 16px; background-color:#2563EB; color:white; border-radius:10px; text-decoration:none;'>{ui_texts['flights_button'].format(city_name=cleaned_city_name.title())}</a>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
+        # FIX: Corrected typo 'class'card'
         st.markdown("<div class='card'>", unsafe_allow_html=True) 
         st.subheader(ui_texts["summary_header"].format(city_name=cleaned_city_name.title()))
+        # UPDATED: Pass language code to summary function
         summary = get_city_summary(cleaned_city_name, selected_lang_code, ui_texts)
         st.write(summary)
         st.markdown("</div>", unsafe_allow_html=True)
 
+        # UPDATED: Pass language code to guide function
         guide_text = generate_travel_guide(cleaned_city_name, selected_lang_code, ui_texts)
         
         if "Could not generate guide" in guide_text:
             st.error(guide_text)
         else:
             parsed_guide = parse_guide_to_dict(guide_text)
+            # FIX: Corrected typo 'class'card'
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
             
-            if not parsed_guide:
-                st.error("The AI returned an invalid format. Please try again.")
-            else:
-                st.markdown("<div class='card'>", unsafe_allow_html=True)
-                
-                for category, items in parsed_guide.items():
-                    st.subheader(category)
-                    for item in items:
-                        
-                        col1, col2 = st.columns([1, 2]) 
-                        
-                        with col1:
-                            # NEW: Get image from Wikipedia
-                            image_url = get_image_url(item["name"], selected_lang_code)
-                            st.image(image_url, caption=f"{item['name']}", use_container_width=True)
-                        
-                        with col2:
-                            map_link = generate_google_maps_link(item["name"], cleaned_city_name)
-                            st.markdown(f"#### [{item['name']}]({map_link})")
-                            st.write(item["description"])
-                            
-                        st.divider() 
-                        
-                st.markdown("</div>", unsafe_allow_html=True)
-                
-                st.success(ui_texts["success"])
-                
-                st.markdown("---")
-                
-                download_text = format_guide_for_download(parsed_guide, cleaned_city_name, selected_language_name)
-                
-                st.download_button(
-                    label=ui_texts["download_button"],
-                    data=download_text,
-                    file_name=f"{cleaned_city_name}_guide.txt",
-                    mime="text/plain",
-                    use_container_width=True
-                )
+            for category, items in parsed_guide.items():
+                st.subheader(category)
+                for item in items:
+                    # UPDATED: Display name and description
+                    map_link = generate_google_maps_link(item["name"], cleaned_city_name)
+                    st.markdown(f"#### [{item['name']}]({map_link})")
+                    st.write(item["description"])
+                    st.divider() # Add a line between items
+                    
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            st.success(ui_texts["success"])
 
-# --- Footer ---
+# --- NEW: Footer ---
 st.markdown("---")
 st.markdown(f"<div style='text-align: center; color: #888; font-size: 0.9rem;'>{ui_texts['footer']}</div>", unsafe_allow_html=True)
-
 
